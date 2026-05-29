@@ -1,11 +1,8 @@
 #lang info
 
-(define deps
-  '("base"
-    "rosette"
-    ))
-(define build-deps
-  '("rackunit-lib"
-    ))
-(define license 'MIT)
-(define pkg-authors '(jharma))
+(define collection 'multi)
+
+(define deps '("rackverify-lib"))
+(define implies '("rackverify-lib"))
+
+(define pkg-authors '(joharma))

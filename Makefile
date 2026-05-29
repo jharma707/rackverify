@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	raco test -t ./rackverify
+	raco test -t ./rackverify-test
 
 .PHONY: setup
 setup:
