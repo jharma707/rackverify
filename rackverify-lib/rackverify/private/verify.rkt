@@ -7,7 +7,6 @@
          verify-eqv?
          verify-pred
          verify-contract
-         pass
 
          test-begin
          test-case)
@@ -21,17 +20,15 @@
 (define (verify-eqv? r1 r2)
   (verify-test (assert (eqv? r1 r2))))
 
-(define (pass) (check-true #t))
-
 (define (verify-pred pred? result)
   (verify-test (assert (pred? result))))
 
-(define (verify-contract f args ...)
+(define-syntax-rule (verify-contract f args ...)
   (verify-test (apply f (list args ...))))
 
 (define-syntax-rule (verify-test body ...)
    (let ([output (verify (begin body ...))])
      (if (unsat? output)
-         (pass)
+         (check-true #t)
          (with-check-info (('counterexample (model output)))
-           (fail)))))
+           (fail "Verification failed: counterexample found")))))
