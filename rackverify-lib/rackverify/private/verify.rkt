@@ -2,16 +2,8 @@
 
 (require rackunit)
 
-(provide verify-eq?
-         verify-equal?
-         verify-eqv?
-         verify-pred
-         verify-contract
-
-         test-begin
-         test-case)
-
-; TODO: add an inductive spec (see queue example for forAll cases)
+(provide (except-out (all-defined-out)
+                     verify-test))
 
 (define (verify-eq? r1 r2)
   (verify-test (assert (eq? r1 r2))))
@@ -24,11 +16,12 @@
   (verify-test (assert (pred? result))))
 
 (define-syntax-rule (verify-contract f args ...)
-  (verify-test (apply f (list args ...))))
+  (verify-test (f args ...)))
 
 (define-syntax-rule (verify-test body ...)
    (let ([output (verify (begin body ...))])
      (if (unsat? output)
          (check-true #t)
          (with-check-info (('counterexample (model output)))
+           ; TODO: synthesize-output-contract
            (fail "Verification failed: counterexample found")))))

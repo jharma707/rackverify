@@ -1,7 +1,6 @@
 #lang rosette
 
-(require syntax/parse
-         (for-syntax rosette syntax/parse))
+(require (for-syntax rosette syntax/parse))
 
 (provide define/rosette-contract)
 
@@ -19,34 +18,37 @@
                (assert #,(contract->predicate (first output-ctcs) #'r))
                r))))]))
 
+; (define-syntax (define/rosette-contract-with-tests stx)
+
 (begin-for-syntax
   (define (contract->predicate ctc symbolic-var)
-    (define (map-contracts ctcs)
-      (map (lambda (ctc) (contract->predicate ctc symbolic-var)) (syntax->list ctcs)))
-
     (syntax-parse ctc
-      [(~literal integer?)    #`(integer?  #,symbolic-var)]
-      [(~literal number?)     #`(number?   #,symbolic-var)]
-      [(~literal real?)       #`(real?     #,symbolic-var)]
-      [(~literal positive?)   #`(positive? #,symbolic-var)]
-      [(~literal negative?)   #`(negative? #,symbolic-var)]
-      [(~literal zero?)       #`(zero?     #,symbolic-var)]
-      [(~literal even?)       #`(even?     #,symbolic-var)]
-      [(~literal odd?)        #`(odd?      #,symbolic-var)]
-      [(~literal any/c)       #'#t]
-      [(~literal none/c)      #'#f]
-      [((~literal not/c) ctc) #`(! #,(contract->predicate #'ctc symbolic-var))]
+      [(~or* (~literal integer?) (~literal real?)
+             (~literal positive?) (~literal negative?)
+             (~literal zero?)
+             (~literal even?) (~literal odd?))
+       #`(#,ctc #,symbolic-var)]
+
+      [(~literal any)    #'#t]
+      [(~literal any/c)  #'#t]
+      [(~literal none/c) #'#f]
+
       [((~literal or/c) ctcs ...)
-       #:with (predicates ...) (map-contracts #'(ctcs ...))
+       #:with (predicates ...) (map (λ (c) (contract->predicate c symbolic-var)) (syntax->list #'(ctcs ...)))
        #`(|| predicates ...)]
       [((~literal and/c) ctcs ...)
-       #:with (predicates ...) (map-contracts #'(ctcs ...))
+       #:with (predicates ...) (map (λ (c) (contract->predicate c symbolic-var)) (syntax->list #'(ctcs ...)))
        #`(&& predicates ...)]
-      [((~literal =/c) v)  #`(eq? #,symbolic-var v)]
-      [((~literal </c) v)  #`(< #,symbolic-var v)]
-      [((~literal <=/c) v) #`(<= #,symbolic-var v)]
-      [((~literal >/c) v)  #`(> #,symbolic-var v)]
-      [((~literal >=/c) v) #`(>= #,symbolic-var v)]
+
+      [((~literal =/c)  v) #`(eq? #,symbolic-var v)]
+      [((~literal </c)  v) #`(<   #,symbolic-var v)]
+      [((~literal <=/c) v) #`(<=  #,symbolic-var v)]
+      [((~literal >/c)  v) #`(>   #,symbolic-var v)]
+      [((~literal >=/c) v) #`(>=  #,symbolic-var v)]
+
+      [((~literal not/c)     ctc) #`(! #,(contract->predicate #'ctc symbolic-var))]
       [((~literal between/c) v u) #`(&& (>= #,symbolic-var v) (<= #,symbolic-var u))]
-      [((~literal real-in) v u) (contract->predicate #'(between/c v u) symbolic-var)]))
+      [((~literal real-in)   v u) (contract->predicate #'(between/c v u) symbolic-var)]))
+
+  ; (define (infer-type-predicate)
   )

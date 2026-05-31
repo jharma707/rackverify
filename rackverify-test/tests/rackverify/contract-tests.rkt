@@ -1,6 +1,7 @@
 #lang rosette
 
-(require rackverify/contracts)
+(require rackverify/contracts
+         rosette/lib/synthax)
 
 (module+ test
   (require rackverify)
@@ -39,5 +40,25 @@
 (module+ test
   (test-case
     "can accept any input"
-    (define-symbolic r1 real?)
-    (verify-contract any-input r1)))
+    (define-symbolic r real?)
+    (verify-contract any-input r)))
+
+(define/rosette-contract (any-output x)
+  (-> integer? any) "hello, world")
+
+(module+ test
+  (test-case
+    "can return any value"
+    (define-symbolic r real?)
+    (verify-contract any-output r)))
+
+; TODO: have rackverify determine what the correct contract should be as a suggestion in the failure report
+(define/rosette-contract (fill-output-contract x)
+  (-> positive? positive?) -1)
+
+(module+ test
+  (test-case
+    "can deduce the correct output contract"
+    (define-symbolic x integer?)
+    (check-exn exn:fail? (thunk (verify-contract fill-output-contract x)))))
+
