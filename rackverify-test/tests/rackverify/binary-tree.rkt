@@ -9,7 +9,7 @@
 
   (define-symbolic x integer?)
 
-  (with-verify
+  (test-begin
     (define result (f x))
     (assert (|| (positive? result) (zero? result))))
   )
