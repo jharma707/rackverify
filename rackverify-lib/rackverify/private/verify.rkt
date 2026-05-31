@@ -24,7 +24,7 @@
   (verify-test body ...))
 
 (define-syntax-rule (verify-contract f args ...)
-  (verify-test (assert (apply f (list args ...)))))
+  (verify-test (apply f (list args ...))))
 
 (define-syntax-rule (verify-test body ...)
    (let ([output (verify (begin body ...))])

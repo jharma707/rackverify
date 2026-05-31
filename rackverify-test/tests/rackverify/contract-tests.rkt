@@ -6,11 +6,11 @@
   (require rackverify)
   (define-symbolic* x y integer?))
 
-(define/rosette-contract (f x)
-  (-> integer? positive?) ; change to (or/c positive? negative?)
-  (* (add1 (abs x)) 10))
+(define/rosette-contract (f x y)
+  (-> (or/c zero? positive?) positive? (not/c negative?))
+  (* x y))
 
-(module+ test (verify-contract f x))
+(module+ test (verify-contract f x y))
 
 (define/rosette-contract (g y)
   (-> positive? negative?)

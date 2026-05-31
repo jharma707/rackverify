@@ -11,5 +11,5 @@
 
   (with-verify
     (define result (f x))
-    (assert (>= result 0)))
+    (assert (|| (positive? result) (zero? result))))
   )
