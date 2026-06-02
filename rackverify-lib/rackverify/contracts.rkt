@@ -1,6 +1,7 @@
 #lang rosette
 
-(require (for-syntax rosette syntax/parse))
+(require (for-syntax rosette
+                     syntax/parse))
 
 (provide define/rosette-contract)
 
@@ -50,5 +51,48 @@
       [((~literal between/c) v u) #`(&& (>= #,symbolic-var v) (<= #,symbolic-var u))]
       [((~literal real-in)   v u) (contract->predicate #'(between/c v u) symbolic-var)]))
 
-  ; (define (infer-type-predicate)
+  (define (infer-type-from-contract ctc)
+    (define (number-type? t)
+      (syntax-parse t
+        [(~or* (~literal integer?) (~literal real?)) #t]
+        [else #f]))
+
+    (define (boolean-type? t)
+      (syntax-parse t
+        [(~literal boolean?) #t]
+        [else #f]))
+
+    (define (all-same-type? ctcs)
+     (cond [(number-type?  (first ctcs)) (andmap number-type?  (rest ctcs))]
+           [(boolean-type? (first ctcs)) (andmap boolean-type? (rest ctcs))]))
+
+    (define (get-type-priority t)
+      (syntax-parse t
+        ; number type priorities
+        [(~literal integer?) 0]
+        [(~literal real?)    1]
+        ; boolean type priorities
+        [(~literal boolean?) 0]))
+    
+    (syntax-parse ctc
+      [(~or* (~literal integer?) (~literal odd?) (~literal even?))
+       #'integer?]
+      [(~or* ((~literal between/c) _ _) ((~literal real-in) _ _)
+             ((~literal =/c) _) ((~literal </c) _) ((~literal <=/c) _)
+             ((~literal >/c) _) ((~literal >=/c) _) (~literal zero?))
+       #'real?]
+      [((~literal not/c) c) (infer-type-from-contract #'c)]
+      [((~literal and/c) ctcs ...)
+       #:with      inferred-types (map infer-type-from-contract (syntax->list #'(ctcs ...)))
+       #:fail-when (not (all-same-type? #'inferred-types))
+       (format "type-mismatch: the contract's type is not consistent\n~a" `(and/c ,(syntax->datum #'(ctcs ...))))
+       #'(#,(argmin (map (lambda (t) (cons (get-type-priority t) t))
+                         inferred-types)))]
+      [((~literal or/c) ctcs ...)
+       #:with      inferred-types (map infer-type-from-contract (syntax->list #'(ctcs ...)))
+       #:fail-when (not (all-same-type? #'inferred-types))
+       (format "type-mismatch: the contract's type is not consistent\n~a" `(or/c ,(syntax->datum #'(ctcs ...))))
+       #'(#,(argmax (map (lambda (t) (cons (get-type-priority t) t))
+                         inferred-types)))]
+      ))
   )
