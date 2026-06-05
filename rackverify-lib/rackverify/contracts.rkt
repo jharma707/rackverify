@@ -18,7 +18,7 @@
      "arity-mismatch: the number of parameters is not equal to the number of input contracts"
      (let*-values ([(input-ctcs output-ctcs) (split-at-right (syntax->list #'(ctcs ...)) 1)]
                    [(input-preds)            (map contract->predicate input-ctcs (syntax->list #'(args ...)))])
-       (with-syntax ([(assumes ...) (map (lambda (pred) #`(assume #,pred)) input-preds)])
+       (with-syntax ([(assumes ...) (map (λ (pred) #`(assume #,pred)) input-preds)])
          #`(define (f args ...)
              (let ([r (begin assumes ... body ...)])
                (assert #,(contract->predicate (first output-ctcs) #'r))
@@ -30,13 +30,14 @@
      (with-syntax ([(sym-vars ...)
                     (for/list ([arg (syntax->list #'(args ...))]
                                [ctc (syntax->list #'(ctcs ...))])
-                      #`(define-symbolic #,arg (arg+type->rosette-form #,arg #,ctc)))])
+                      (define type (local-expand #`(infer-type-from-contract #,ctc) 'expression (list #'#%app)))
+                      #`(arg+type->rosette-form #,arg #,type))])
        #'(begin
            (define/rosette-contract (f args ...) (-> ctcs ...) body ...)
            (module+ test
              (test-case message
-              sym-vars ...
-              (verify-contract f args ...)))))]))
+               sym-vars ...
+               (verify-contract f args ...)))))]))
 
 (begin-for-syntax
   (define (contract->predicate ctc symbolic-var)
@@ -71,6 +72,6 @@
       [((~literal list/c) ctcs ...)
        #:with (accessors ...) (for/list ([ctc (syntax->list #'(ctcs ...))]
                                          [pos (in-naturals 0)])
-                                #`(#,(contract->predicate ctc #`(list-ref #,symbolic-var #,pos))))
+                                (contract->predicate ctc #`(list-ref #,symbolic-var #,pos)))
        #`(&& (list? #,symbolic-var) accessors ...)]))
   )
