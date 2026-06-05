@@ -1,9 +1,14 @@
 #lang rosette
 
-(require (for-syntax rosette
-                     syntax/parse))
+(require "main.rkt"
+         "private/type-inference.rkt"
+         (for-syntax rosette
+                     syntax/parse
+                     "private/type-inference.rkt"
+                     "main.rkt"))
 
-(provide define/rosette-contract)
+(provide define/rosette-contract
+         define/rosette-contract/test)
 
 (define-syntax (define/rosette-contract stx)
   (syntax-parse stx
@@ -19,7 +24,19 @@
                (assert #,(contract->predicate (first output-ctcs) #'r))
                r))))]))
 
-; (define-syntax (define/rosette-contract-with-tests stx)
+(define-syntax (define/rosette-contract/test stx)
+  (syntax-parse stx
+    [(_ (f args ...) message (-> ctcs ...) body ...)
+     (with-syntax ([(sym-vars ...)
+                    (for/list ([arg (syntax->list #'(args ...))]
+                               [ctc (syntax->list #'(ctcs ...))])
+                      #`(define-symbolic #,arg (arg+type->rosette-form #,arg #,ctc)))])
+       #'(begin
+           (define/rosette-contract (f args ...) (-> ctcs ...) body ...)
+           (module+ test
+             (test-case message
+              sym-vars ...
+              (verify-contract f args ...)))))]))
 
 (begin-for-syntax
   (define (contract->predicate ctc symbolic-var)
@@ -49,50 +66,11 @@
 
       [((~literal not/c)     ctc) #`(! #,(contract->predicate #'ctc symbolic-var))]
       [((~literal between/c) v u) #`(&& (>= #,symbolic-var v) (<= #,symbolic-var u))]
-      [((~literal real-in)   v u) (contract->predicate #'(between/c v u) symbolic-var)]))
+      [((~literal real-in)   v u) (contract->predicate #'(between/c v u) symbolic-var)]
 
-  (define (infer-type-from-contract ctc)
-    (define (number-type? t)
-      (syntax-parse t
-        [(~or* (~literal integer?) (~literal real?)) #t]
-        [else #f]))
-
-    (define (boolean-type? t)
-      (syntax-parse t
-        [(~literal boolean?) #t]
-        [else #f]))
-
-    (define (all-same-type? ctcs)
-     (cond [(number-type?  (first ctcs)) (andmap number-type?  (rest ctcs))]
-           [(boolean-type? (first ctcs)) (andmap boolean-type? (rest ctcs))]))
-
-    (define (get-type-priority t)
-      (syntax-parse t
-        ; number type priorities
-        [(~literal integer?) 0]
-        [(~literal real?)    1]
-        ; boolean type priorities
-        [(~literal boolean?) 0]))
-    
-    (syntax-parse ctc
-      [(~or* (~literal integer?) (~literal odd?) (~literal even?))
-       #'integer?]
-      [(~or* ((~literal between/c) _ _) ((~literal real-in) _ _)
-             ((~literal =/c) _) ((~literal </c) _) ((~literal <=/c) _)
-             ((~literal >/c) _) ((~literal >=/c) _) (~literal zero?))
-       #'real?]
-      [((~literal not/c) c) (infer-type-from-contract #'c)]
-      [((~literal and/c) ctcs ...)
-       #:with      inferred-types (map infer-type-from-contract (syntax->list #'(ctcs ...)))
-       #:fail-when (not (all-same-type? #'inferred-types))
-       (format "type-mismatch: the contract's type is not consistent\n~a" `(and/c ,(syntax->datum #'(ctcs ...))))
-       #'(#,(argmin (map (lambda (t) (cons (get-type-priority t) t))
-                         inferred-types)))]
-      [((~literal or/c) ctcs ...)
-       #:with      inferred-types (map infer-type-from-contract (syntax->list #'(ctcs ...)))
-       #:fail-when (not (all-same-type? #'inferred-types))
-       (format "type-mismatch: the contract's type is not consistent\n~a" `(or/c ,(syntax->datum #'(ctcs ...))))
-       #'(#,(argmax (map (lambda (t) (cons (get-type-priority t) t))
-                         inferred-types)))]
-      ))
+      [((~literal list/c) ctcs ...)
+       #:with (accessors ...) (for/list ([ctc (syntax->list #'(ctcs ...))]
+                                         [pos (in-naturals 0)])
+                                #`(#,(contract->predicate ctc #`(list-ref #,symbolic-var #,pos))))
+       #`(&& (list? #,symbolic-var) accessors ...)]))
   )

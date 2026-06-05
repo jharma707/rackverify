@@ -16,12 +16,11 @@
   (verify-test (assert (pred? result))))
 
 (define-syntax-rule (verify-contract f args ...)
-  (verify-test (f args ...)))
+  (verify-test (assert (f args ...))))
 
 (define-syntax-rule (verify-test body ...)
    (let ([output (verify (begin body ...))])
      (if (unsat? output)
          (check-true #t)
          (with-check-info (('counterexample (model output)))
-           ; TODO: synthesize-output-contract
            (fail "Verification failed: counterexample found")))))
