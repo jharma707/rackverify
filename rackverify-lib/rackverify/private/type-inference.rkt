@@ -6,6 +6,9 @@
 (provide infer-type-from-contract
          arg+type->rosette-form)
 
+(begin-for-syntax
+  (define max-list-bound 5))
+
 #|
 Return a type predicate syntax object
 that Rosette can support.
@@ -21,12 +24,17 @@ that Rosette can support.
               ((~literal >/c) _) ((~literal >=/c) _) (~literal zero?)
               (~literal positive?) (~literal negative?))
         #'real?]
-       [((~literal not/c) c) #'(infer-type-from-contract c)]
+       [(~literal boolean?) #'boolean?]
+       
+       [((~literal not/c) c)  #'(infer-type-from-contract c)]
+       [((~literal listof) c) #'(list* (infer-type-from-contract c))]
+               
        [((~literal and/c) ctcs ...)
-        #'(and (infer-type-from-contract ctcs) ...)]
+        #'(and   (infer-type-from-contract ctcs) ...)]
        [((~literal or/c) ctcs ...)
-        #'(or  (infer-type-from-contract ctcs) ...)]
-       [((~literal list/c) cs ...) #'(list (infer-type-from-contract cs) ...)])]))
+        #'(or    (infer-type-from-contract ctcs) ...)]
+       [((~literal list/c) ctcs ...)
+        #'(list  (infer-type-from-contract ctcs) ...)])]))
 
 (define-syntax (arg+type->rosette-form stx)
   (syntax-parse stx
@@ -44,6 +52,18 @@ that Rosette can support.
             #`(begin
                 sym-vars ...
                 (define arg (list pred-names ...))))]
+       [((~literal list*) ctc)
+        (with-syntax* ([(pred-names ...)
+                        (for/list ([i (in-inclusive-range 1 max-list-bound)])
+                           (format-id #'arg "~a-~a" #'arg i))]
+                       [(sym-vars ...)
+                        (for/list ([name (in-list (syntax->list #'(pred-names ...)))])
+                           #`(define-symbolic #,name ctc))]
+                       [arg-size (format-id #'arg "~a-sz" #'arg)])
+            #`(begin
+                sym-vars ...
+                (define-symbolic arg-size integer?)
+                (define arg (take (list pred-names ...) arg-size))))]
        [_ #'(define-symbolic arg t)])]))
         
   

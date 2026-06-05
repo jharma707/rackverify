@@ -36,6 +36,7 @@
            (define/rosette-contract (f args ...) (-> ctcs ...) body ...)
            (module+ test
              (test-case message
+               (clear-vc!)
                sym-vars ...
                (verify-contract f args ...)))))]))
 
@@ -45,7 +46,8 @@
       [(~or* (~literal integer?) (~literal real?)
              (~literal positive?) (~literal negative?)
              (~literal zero?)
-             (~literal even?) (~literal odd?))
+             (~literal even?) (~literal odd?)
+             (~literal boolean?))
        #`(#,ctc #,symbolic-var)]
 
       [(~literal any)    #'#t]
@@ -68,6 +70,8 @@
       [((~literal not/c)     ctc) #`(! #,(contract->predicate #'ctc symbolic-var))]
       [((~literal between/c) v u) #`(&& (>= #,symbolic-var v) (<= #,symbolic-var u))]
       [((~literal real-in)   v u) (contract->predicate #'(between/c v u) symbolic-var)]
+      [((~literal listof)    ctc) #`(&& (list? #,symbolic-var)
+                                        (andmap (λ (e) #,(contract->predicate #'ctc #'e)) #,symbolic-var))]
 
       [((~literal list/c) ctcs ...)
        #:with (accessors ...) (for/list ([ctc (syntax->list #'(ctcs ...))]
