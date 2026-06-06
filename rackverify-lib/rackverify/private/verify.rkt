@@ -1,6 +1,10 @@
 #lang rosette
 
-(require rackunit)
+(require rackunit
+         json/format/simple
+         json/format/config
+         (for-syntax syntax/parse
+                     rosette))
 
 (provide (except-out (all-defined-out)
                      verify-test))
@@ -19,8 +23,18 @@
   (verify-test (assert (f args ...))))
 
 (define-syntax-rule (verify-test body ...)
-   (let ([output (verify (begin body ...))])
-     (if (unsat? output)
-         (check-true #t)
-         (with-check-info (('counterexample (model output)))
-           (fail "Verification failed: counterexample found")))))
+  (let ([output (verify (begin body ...))])
+    (if (unsat? output)
+        (check-true #t)
+        (with-check-info (('counterexample (format-jsexpr (model->jsexpr (model output)))))
+          (fail "Verification failed: counterexample found")))))
+
+(define-syntax-rule (format-jsexpr jsexpr)
+  (string-info (format "\n~a" (jsexpr->pretty-json jsexpr))))
+
+(define-syntax-rule (model->jsexpr model)
+  (make-hash
+   (hash-map model
+             (λ (key val)
+               (match key
+                 [(constant id _) `(,(syntax->datum id) . ,val)])))))

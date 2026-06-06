@@ -35,10 +35,25 @@
   (-> (listof integer?) (listof integer?) (listof integer?))
   (append xs ys))
 
-(define/rosette-contract/test (involution2 ls)
-  "bounded list reverse is an inverse of itself"
-  (-> (listof integer?) (listof integer?))
-  (let ([r (reverse (reverse ls))])
-    (assert (equal? r ls))
-    r))
+(define/rosette-contract/test (append-type2 xs ys)
+  "list append can contain different types"
+  (-> (listof real?) (listof boolean?) (listof (or/c real? boolean?)))
+  (append xs ys))
 
+(define/rosette-contract/test (floor-reals xs)
+  "flooring a list of reals yields a list of integers"
+  (-> (listof real?) (listof integer?))
+  (map floor xs))
+
+(define/rosette-contract/test (decrementing-list xs)
+  "decrementing a list of ones yields a list of zeros"
+  (-> (listof (=/c 1)) (listof zero?))
+  (map sub1 xs))
+
+(define/rosette-contract/test (sum xs)
+  "recursive sum of a list of positives is a non-negative number"
+  (-> (listof positive?) (not/c negative?))
+  (if (empty? xs)
+      0
+      (+ (first xs) (sum (rest xs)))))
+   

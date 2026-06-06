@@ -1,13 +1,11 @@
 #lang rosette
 
-(require (for-syntax syntax/parse racket/syntax)
+(require (for-syntax syntax/parse racket/syntax
+                     "utils.rkt")
          rosette)
 
 (provide infer-type-from-contract
          arg+type->rosette-form)
-
-(begin-for-syntax
-  (define max-list-bound 5))
 
 #|
 Return a type predicate syntax object
@@ -22,19 +20,20 @@ that Rosette can support.
        [(~or* ((~literal between/c) _ _) ((~literal real-in) _ _)
               ((~literal =/c) _) ((~literal </c) _) ((~literal <=/c) _)
               ((~literal >/c) _) ((~literal >=/c) _) (~literal zero?)
-              (~literal positive?) (~literal negative?))
+              (~literal positive?) (~literal negative?)
+              (~literal real?))
         #'real?]
-       [(~literal boolean?) #'boolean?]
+       [(~literal boolean?)  #'boolean?]
        
        [((~literal not/c) c)  #'(infer-type-from-contract c)]
        [((~literal listof) c) #'(list* (infer-type-from-contract c))]
-               
+
        [((~literal and/c) ctcs ...)
-        #'(and   (infer-type-from-contract ctcs) ...)]
+        #'(and  (infer-type-from-contract ctcs) ...)]
        [((~literal or/c) ctcs ...)
-        #'(or    (infer-type-from-contract ctcs) ...)]
+        #'(or   (infer-type-from-contract ctcs) ...)]
        [((~literal list/c) ctcs ...)
-        #'(list  (infer-type-from-contract ctcs) ...)])]))
+        #'(list (infer-type-from-contract ctcs) ...)])]))
 
 (define-syntax (arg+type->rosette-form stx)
   (syntax-parse stx
@@ -42,22 +41,20 @@ that Rosette can support.
      (syntax-parse #'t
        [((~literal list) ts ...)
         (with-syntax* ([(pred-names ...)
-                        (for/list ([e (in-list (syntax->list #'(ts ...)))]
+                        (for/list ([e (syntax->list #'(ts ...))]
                                    [i (in-naturals 1)])
                            (format-id #'arg "~a-~a" #'arg i))]
                        [(sym-vars ...)
-                        (for/list ([e    (in-list (syntax->list #'(ts ...)))]
-                                   [name (in-list (syntax->list #'(pred-names ...)))])
+                        (for/list ([e    (syntax->list #'(ts ...))]
+                                   [name (syntax->list #'(pred-names ...))])
                            #`(define-symbolic #,name #,e))])
             #`(begin
                 sym-vars ...
                 (define arg (list pred-names ...))))]
        [((~literal list*) ctc)
-        (with-syntax* ([(pred-names ...)
-                        (for/list ([i (in-inclusive-range 1 max-list-bound)])
-                           (format-id #'arg "~a-~a" #'arg i))]
+        (with-syntax* ([(pred-names ...) (list-constants #'arg)]
                        [(sym-vars ...)
-                        (for/list ([name (in-list (syntax->list #'(pred-names ...)))])
+                        (for/list ([name (syntax->list #'(pred-names ...))])
                            #`(define-symbolic #,name ctc))]
                        [arg-size (format-id #'arg "~a-sz" #'arg)])
             #`(begin
