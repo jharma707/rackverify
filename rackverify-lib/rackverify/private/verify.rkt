@@ -30,7 +30,7 @@
           (fail "Verification failed: counterexample found")))))
 
 (define-syntax-rule (format-jsexpr jsexpr)
-  (string-info (format "\n~a" (jsexpr->pretty-json jsexpr))))
+  (string-info (format "\r~a" (jsexpr->pretty-json jsexpr))))
 
 (define-syntax-rule (model->jsexpr model)
   (make-hash
